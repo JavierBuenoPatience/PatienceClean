@@ -1,5 +1,7 @@
+import os
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
+from fastapi.middleware.cors import CORSMiddleware
 
 from database import SessionLocal, engine, Base
 from models import User
@@ -10,17 +12,16 @@ from crud import create_user, get_user_by_email
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-from fastapi.middleware.cors import CORSMiddleware
 
+# Configuración de CORS
 origins = [
-
     "https://javierbuenopatience.github.io/Patience/",
     "http://127.0.0.1:8000/", 
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # O bien ["*"] si prefieres permitir todos los orígenes
+    allow_origins=origins,  # Puedes usar ["*"] para permitir todos los orígenes
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,4 +43,10 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="El correo ya está registrado")
     # Crea el usuario
     return create_user(db=db, user=user)
+
+# Configuración para que la app escuche en el puerto especificado por Railway
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))  # Usa el puerto especificado por Railway o 8000 por defecto
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
 
