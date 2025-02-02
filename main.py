@@ -18,7 +18,7 @@ app = FastAPI()
 origins = [
     "https://javierbuenopatience.github.io",
     "https://javierbuenopatience.github.io/Patience",
-    "http://127.0.0.1:8000"
+    "http://127.0.0.1:8000",
     "https://javierbuenopatience.github.io/Patiencefrontend/"
 ]
 app.add_middleware(
@@ -36,6 +36,11 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Endpoint de bienvenida (opcional)
+@app.get("/")
+def read_root():
+    return {"message": "Bienvenido a la API de Patience"}
 
 # Endpoint para registrar usuarios
 @app.post("/users/", response_model=UserResponse)
