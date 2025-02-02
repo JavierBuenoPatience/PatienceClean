@@ -16,10 +16,10 @@ app = FastAPI()
 
 # Configuración de CORS (ajusta los orígenes según tus necesidades)
 origins = [
-    "https://javierbuenopatience.github.io/Patience/",
-    "http://127.0.0.1:8000/",
+    "https://javierbuenopatience.github.io",
+    "https://javierbuenopatience.github.io/Patience",
+    "http://127.0.0.1:8000"
 ]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,  # También puedes usar ["*"] para permitir todos los orígenes
