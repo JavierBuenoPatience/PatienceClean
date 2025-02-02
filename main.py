@@ -19,6 +19,7 @@ origins = [
     "https://javierbuenopatience.github.io",
     "https://javierbuenopatience.github.io/Patience",
     "http://127.0.0.1:8000"
+    "https://javierbuenopatience.github.io/Patiencefrontend/"
 ]
 app.add_middleware(
     CORSMiddleware,
