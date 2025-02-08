@@ -1,12 +1,12 @@
 import os
-from fastapi import FastAPI, Depends, HTTPException, Body
+from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
 
 from database import SessionLocal, engine, Base
 from models import User
-from schemas import UserCreate, UserLogin, UserResponse, UserProfileUpdate
+from schemas import UserCreate, UserLogin, UserResponse
 from crud import create_user, get_user_by_email
 
 # Crear las tablas en la base de datos
@@ -14,7 +14,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# Configuración de CORS
+# Configuración de CORS (ajusta los orígenes según tus necesidades)
 origins = [
     "https://javierbuenopatience.github.io",
     "https://javierbuenopatience.github.io/Patience",
@@ -23,7 +23,7 @@ origins = [
 ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Puedes usar ["*"] para permitir todos los orígenes
+    allow_origins=origins,  # También puedes usar ["*"] para permitir todos los orígenes
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,6 +37,7 @@ def get_db():
     finally:
         db.close()
 
+# Endpoint de bienvenida (opcional)
 @app.get("/")
 def read_root():
     return {"message": "Bienvenido a la API de Patience"}
@@ -44,12 +45,14 @@ def read_root():
 # Endpoint para registrar usuarios
 @app.post("/users/", response_model=UserResponse)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    # Comprueba si el correo ya existe
     db_user = get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="El correo ya está registrado")
+    # Crea el usuario y devuelve los datos (sin la contraseña)
     return create_user(db=db, user=user)
 
-# Endpoint para iniciar sesión (login)
+# Endpoint para iniciar sesión (login) usando JSON
 @app.post("/login")
 def login_user(user: UserLogin, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, email=user.email)
@@ -60,51 +63,10 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Contraseña incorrecta")
     return {
         "message": "Inicio de sesión exitoso",
-        "user": {
-            "id": db_user.id,
-            "name": db_user.name,
-            "email": db_user.email,
-            "phone": db_user.phone,
-            "exam_date": db_user.exam_date,
-            "specialty": db_user.specialty,
-            "hobbies": db_user.hobbies,
-            "location": db_user.location,
-            "profile_image": db_user.profile_image
-        }
+        "user": {"id": db_user.id, "name": db_user.name, "email": db_user.email}
     }
 
-# Endpoint para obtener el perfil del usuario
-@app.get("/profile", response_model=UserResponse)
-def get_profile(email: str, db: Session = Depends(get_db)):
-    db_user = get_user_by_email(db, email=email)
-    if not db_user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    return db_user
-
-# Endpoint para actualizar el perfil del usuario
-@app.put("/profile", response_model=UserResponse)
-def update_profile(email: str = Body(...), profile: UserProfileUpdate = Body(...), db: Session = Depends(get_db)):
-    db_user = get_user_by_email(db, email=email)
-    if not db_user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    if profile.name is not None:
-        db_user.name = profile.name
-    if profile.phone is not None:
-        db_user.phone = profile.phone
-    if profile.exam_date is not None:
-        db_user.exam_date = profile.exam_date
-    if profile.specialty is not None:
-        db_user.specialty = profile.specialty
-    if profile.hobbies is not None:
-        db_user.hobbies = profile.hobbies
-    if profile.location is not None:
-        db_user.location = profile.location
-    if profile.profile_image is not None:
-        db_user.profile_image = profile.profile_image
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
+# Configuración para que la app escuche en el puerto especificado (útil en entornos como Railway o Render)
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     import uvicorn
