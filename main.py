@@ -10,6 +10,7 @@ from models import User, Document, Activity
 from schemas import UserCreate, UserLogin, UserResponse, UserUpdate, DocumentSchema, ActivitySchema
 from crud import create_user, get_user_by_email, update_user_profile, create_document, get_documents_by_user, create_activity, get_activities_by_user
 
+# Crear las tablas (esto actualizará la base de datos según los modelos actuales)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -85,12 +86,14 @@ def update_profile(user_email: str, profile: UserUpdate, db: Session = Depends(g
 
 @app.post("/uploadfile", response_model=DocumentSchema)
 async def upload_file(user_email: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    # Directorio donde se almacenarán los archivos
     upload_dir = "uploaded_files"
     os.makedirs(upload_dir, exist_ok=True)
     file_location = os.path.join(upload_dir, file.filename)
     with open(file_location, "wb") as buffer:
         buffer.write(await file.read())
-    file_url = file_location  # En un entorno real, se usaría una URL pública
+    # Para el MVP, usaremos la ruta local como URL; en producción, se debería usar una URL pública (p.ej., S3)
+    file_url = file_location
     document = create_document(db, user_email, file.filename, file_url, file.content_type)
     return document
 
