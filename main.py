@@ -1,20 +1,19 @@
 import os
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
+from typing import List
 from passlib.context import CryptContext
 
 from database import SessionLocal, engine, Base
-from models import User
-from schemas import UserCreate, UserLogin, UserResponse
-from crud import create_user, get_user_by_email
+from models import User, Document, Activity
+from schemas import UserCreate, UserLogin, UserResponse, UserUpdate, DocumentSchema, ActivitySchema
+from crud import create_user, get_user_by_email, update_user_profile, create_document, get_documents_by_user, create_activity, get_activities_by_user
 
-# Crear las tablas en la base de datos
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# Configuración de CORS (ajusta los orígenes según tus necesidades)
 origins = [
     "https://javierbuenopatience.github.io",
     "https://javierbuenopatience.github.io/Patience",
@@ -23,13 +22,12 @@ origins = [
 ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # También puedes usar ["*"] para permitir todos los orígenes
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Dependencia para obtener la sesión de la base de datos
 def get_db():
     db = SessionLocal()
     try:
@@ -37,22 +35,17 @@ def get_db():
     finally:
         db.close()
 
-# Endpoint de bienvenida (opcional)
 @app.get("/")
 def read_root():
     return {"message": "Bienvenido a la API de Patience"}
 
-# Endpoint para registrar usuarios
 @app.post("/users/", response_model=UserResponse)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    # Comprueba si el correo ya existe
     db_user = get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="El correo ya está registrado")
-    # Crea el usuario y devuelve los datos (sin la contraseña)
     return create_user(db=db, user=user)
 
-# Endpoint para iniciar sesión (login) usando JSON
 @app.post("/login")
 def login_user(user: UserLogin, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, email=user.email)
@@ -63,10 +56,54 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Contraseña incorrecta")
     return {
         "message": "Inicio de sesión exitoso",
-        "user": {"id": db_user.id, "name": db_user.name, "email": db_user.email}
+        "user": {
+            "id": db_user.id,
+            "name": db_user.name,
+            "email": db_user.email,
+            "phone": db_user.phone,
+            "exam_date": db_user.exam_date,
+            "specialty": db_user.specialty,
+            "hobbies": db_user.hobbies,
+            "location": db_user.location,
+            "profile_image": db_user.profile_image
+        }
     }
 
-# Configuración para que la app escuche en el puerto especificado (útil en entornos como Railway o Render)
+@app.get("/profile", response_model=UserResponse)
+def get_profile(user_email: str, db: Session = Depends(get_db)):
+    db_user = get_user_by_email(db, email=user_email)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return db_user
+
+@app.post("/profile", response_model=UserResponse)
+def update_profile(user_email: str, profile: UserUpdate, db: Session = Depends(get_db)):
+    updated_user = update_user_profile(db, user_email, profile.dict(exclude_unset=True))
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return updated_user
+
+@app.post("/uploadfile", response_model=DocumentSchema)
+async def upload_file(user_email: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    upload_dir = "uploaded_files"
+    os.makedirs(upload_dir, exist_ok=True)
+    file_location = os.path.join(upload_dir, file.filename)
+    with open(file_location, "wb") as buffer:
+        buffer.write(await file.read())
+    file_url = file_location  # En un entorno real, se usaría una URL pública
+    document = create_document(db, user_email, file.filename, file_url, file.content_type)
+    return document
+
+@app.get("/documents", response_model=List[DocumentSchema])
+def list_documents(user_email: str, db: Session = Depends(get_db)):
+    docs = get_documents_by_user(db, user_email)
+    return docs
+
+@app.get("/activities", response_model=List[ActivitySchema])
+def list_activities(user_email: str, db: Session = Depends(get_db)):
+    activities = get_activities_by_user(db, user_email)
+    return activities
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     import uvicorn
