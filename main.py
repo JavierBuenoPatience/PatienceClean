@@ -3,12 +3,13 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
-from passlib.context import CryptContext
+
+# Importamos el pwd_context global de crud para reutilizarlo en login
+from crud import pwd_context, create_user, get_user_by_email, update_user_profile, create_document, get_documents_by_user, create_activity, get_activities_by_user
 
 from database import SessionLocal, engine, Base
 from models import User, Document, Activity
 from schemas import UserCreate, UserLogin, UserResponse, UserUpdate, DocumentSchema, ActivitySchema
-from crud import create_user, get_user_by_email, update_user_profile, create_document, get_documents_by_user, create_activity, get_activities_by_user
 
 # Crear las tablas (esto actualizará la base de datos según los modelos actuales)
 Base.metadata.create_all(bind=engine)
@@ -52,7 +53,6 @@ def login_user(user: UserLogin, db: Session = Depends(get_db)):
     db_user = get_user_by_email(db, email=user.email)
     if not db_user:
         raise HTTPException(status_code=400, detail="El correo no está registrado")
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     if not pwd_context.verify(user.password, db_user.hashed_password):
         raise HTTPException(status_code=400, detail="Contraseña incorrecta")
     return {
