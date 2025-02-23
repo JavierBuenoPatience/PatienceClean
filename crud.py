@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
-from passlib.context import CryptContext
+from sqlalchemy.orm import Session # type: ignore
+from passlib.context import CryptContext # type: ignore
 
 from models import User, Document, Activity
 from schemas import UserCreate

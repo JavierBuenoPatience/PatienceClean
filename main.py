@@ -1,10 +1,10 @@
 import os
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
-from sqlalchemy.orm import Session
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File # type: ignore
+from sqlalchemy.orm import Session # type: ignore
+from fastapi.middleware.cors import CORSMiddleware # type: ignore
 from typing import List
-import boto3
-from botocore.exceptions import NoCredentialsError
+import boto3 # type: ignore
+from botocore.exceptions import NoCredentialsError # type: ignore
 from dotenv import load_dotenv
 
 load_dotenv()  # Carga las variables de entorno desde .env
@@ -137,5 +137,5 @@ def list_activities(user_email: str, db: Session = Depends(get_db)):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    import uvicorn
+    import uvicorn # type: ignore
     uvicorn.run("main:app", host="0.0.0.0", port=port)
