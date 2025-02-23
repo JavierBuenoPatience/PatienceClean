@@ -3,6 +3,11 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
+import boto3
+from botocore.exceptions import NoCredentialsError
+from dotenv import load_dotenv
+
+load_dotenv()  # Carga las variables de entorno desde .env
 
 # Importamos el pwd_context global de crud para reutilizarlo en login
 from crud import pwd_context, create_user, get_user_by_email, update_user_profile, create_document, get_documents_by_user, create_activity, get_activities_by_user
@@ -86,14 +91,37 @@ def update_profile(user_email: str, profile: UserUpdate, db: Session = Depends(g
 
 @app.post("/uploadfile", response_model=DocumentSchema)
 async def upload_file(user_email: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
-    # Directorio donde se almacenarán los archivos
-    upload_dir = "uploaded_files"
-    os.makedirs(upload_dir, exist_ok=True)
-    file_location = os.path.join(upload_dir, file.filename)
-    with open(file_location, "wb") as buffer:
-        buffer.write(await file.read())
-    # Para el MVP, usaremos la ruta local como URL; en producción, se debería usar una URL pública (p.ej., S3)
-    file_url = file_location
+    # Configuración de S3: se leen las variables de entorno
+    aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
+    aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+    aws_region = os.getenv("AWS_REGION")
+    bucket_name = os.getenv("AWS_S3_BUCKET")
+    
+    if not all([aws_access_key, aws_secret_key, aws_region, bucket_name]):
+        raise HTTPException(status_code=500, detail="Configuración de AWS incompleta")
+    
+    s3_client = boto3.client(
+        "s3",
+        aws_access_key_id=aws_access_key,
+        aws_secret_access_key=aws_secret_key,
+        region_name=aws_region
+    )
+    
+    try:
+        # Subir el archivo a S3
+        s3_client.upload_fileobj(
+            file.file,
+            bucket_name,
+            file.filename,
+            ExtraArgs={"ContentType": file.content_type}
+        )
+    except NoCredentialsError:
+        raise HTTPException(status_code=500, detail="Error de credenciales de AWS")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al subir el archivo: {e}")
+    
+    # Construir la URL pública del archivo
+    file_url = f"https://{bucket_name}.s3.{aws_region}.amazonaws.com/{file.filename}"
     document = create_document(db, user_email, file.filename, file_url, file.content_type)
     return document
 

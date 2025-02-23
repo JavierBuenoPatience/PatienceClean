@@ -6,3 +6,5 @@ psycopg2-binary
 pydantic[email]
 passlib[bcrypt]
 python-multipart
+boto3
+python-dotenv
